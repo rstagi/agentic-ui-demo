@@ -1,26 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --cream: #faf6f1;
+  --sand: #e8dfd5;
+  --terracotta: #c4703f;
+  --sage: #7d9074;
+  --charcoal: #3d3d3d;
+  --rust: #a65d3f;
+  --moss: #5a6b52;
+  --bone: #f5f0e8;
+  --clay: #b8977e;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-cream: var(--cream);
+  --color-sand: var(--sand);
+  --color-terracotta: var(--terracotta);
+  --color-sage: var(--sage);
+  --color-charcoal: var(--charcoal);
+  --color-rust: var(--rust);
+  --color-moss: var(--moss);
+  --color-bone: var(--bone);
+  --color-clay: var(--clay);
+  --font-serif: 'Crimson Pro', Georgia, serif;
+  --font-sans: 'Source Sans 3', system-ui, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--cream);
+  color: var(--charcoal);
+  font-family: var(--font-sans);
+}
+
+/* Leaflet map fixes */
+.leaflet-container {
+  font-family: var(--font-sans);
+  height: 100%;
+  width: 100%;
+  z-index: 10;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bone);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--clay);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--rust);
+}
+
+/* Staggered animation utility */
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-slide-up {
+  animation: fadeSlideUp 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
 }
