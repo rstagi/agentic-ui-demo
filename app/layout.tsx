@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { TripProvider } from "@/contexts/TripContext";
+import { PlaceProvider } from "@/contexts/PlaceContext";
 import ChatSidebar from "@/components/ChatSidebar";
 import { ChatProvider } from "@/contexts/ChatContext";
 
@@ -18,14 +19,16 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased h-screen flex flex-col overflow-hidden">
         <TripProvider>
-          <ChatProvider>
-            <div className="flex flex-1 min-h-0">
-              <div className="flex-1 min-w-0 flex flex-col overflow-auto">
-                {children}
+          <PlaceProvider>
+            <ChatProvider>
+              <div className="flex flex-1 min-h-0">
+                <div className="flex-1 min-w-0 flex flex-col overflow-auto">
+                  {children}
+                </div>
+                <ChatSidebar />
               </div>
-              <ChatSidebar />
-            </div>
-          </ChatProvider>
+            </ChatProvider>
+          </PlaceProvider>
         </TripProvider>
       </body>
     </html>

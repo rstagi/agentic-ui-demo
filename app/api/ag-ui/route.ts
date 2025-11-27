@@ -1,10 +1,21 @@
 import { NextRequest } from "next/server";
 import { MastraAgent } from "@ag-ui/mastra";
-import { chatAgent } from "@/lib/mastra/agent";
+import { createChatAgent } from "@/lib/mastra/agent";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const { messages, threadId, runId, tools, context, forwardedProps } = body;
+
+  // Extract context from AG-UI context array
+  const allTripsCtx = context?.find((c: { description: string }) => c.description === "allTrips");
+  const currentTripCtx = context?.find((c: { description: string }) => c.description === "currentTrip");
+  const placesCtx = context?.find((c: { description: string }) => c.description === "tripPlaces");
+
+  const allTrips = allTripsCtx ? JSON.parse(allTripsCtx.value) : null;
+  const currentTrip = currentTripCtx ? JSON.parse(currentTripCtx.value) : null;
+  const places = placesCtx ? JSON.parse(placesCtx.value) : null;
+
+  const chatAgent = createChatAgent({ allTrips, currentTrip, places });
 
   const aguiAgent = new MastraAgent({
     agent: chatAgent,

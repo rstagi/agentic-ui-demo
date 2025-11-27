@@ -20,7 +20,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { PlaceProvider, usePlaceContext } from "@/contexts/PlaceContext";
+import { usePlaceContext } from "@/contexts/PlaceContext";
 import { useTripContext } from "@/contexts/TripContext";
 import { useChatContext } from "@/contexts/ChatContext";
 import { PlaceSearch } from "@/components/PlaceSearch";
@@ -115,7 +115,7 @@ function SortablePlaceCard({
 function TripDetailContent({ tripId }: { tripId: number }) {
   const router = useRouter();
   const { trips, updateTrip, removeTrip } = useTripContext();
-  const { isOpen, toggleOpen } = useChatContext();
+  const { isOpen, toggleOpen, setCurrentTripId } = useChatContext();
   const {
     places,
     loading,
@@ -141,6 +141,12 @@ function TripDetailContent({ tripId }: { tripId: number }) {
   const trip = useMemo(() => {
     return trips.find((t) => t.id === tripId) ?? fetchedTrip;
   }, [trips, tripId, fetchedTrip]);
+
+  // Set current trip context for chat agent
+  useEffect(() => {
+    setCurrentTripId(tripId);
+    return () => setCurrentTripId(null);
+  }, [tripId, setCurrentTripId]);
 
   useEffect(() => {
     fetchPlaces(tripId);
@@ -380,9 +386,5 @@ export default function TripDetailPage() {
     );
   }
 
-  return (
-    <PlaceProvider>
-      <TripDetailContent tripId={tripId} />
-    </PlaceProvider>
-  );
+  return <TripDetailContent tripId={tripId} />;
 }

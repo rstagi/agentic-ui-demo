@@ -8,8 +8,12 @@ import {
   useCallback,
   ReactNode,
   useRef,
+  useState,
 } from "react";
+import { useRouter } from "next/navigation";
 import { useTripContext } from "./TripContext";
+import { usePlaceContext } from "./PlaceContext";
+import type { PlaceSearchResult } from "@/lib/types";
 
 export interface Message {
   role: "user" | "assistant";
@@ -66,6 +70,8 @@ interface ChatContextType {
   messages: Message[];
   isLoading: boolean;
   isOpen: boolean;
+  currentTripId: number | null;
+  setCurrentTripId: (id: number | null) => void;
   sendMessage: (content: string) => Promise<void>;
   toggleOpen: () => void;
   setOpen: (open: boolean) => void;
@@ -76,8 +82,11 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(chatReducer, initialState);
+  const [currentTripId, setCurrentTripId] = useState<number | null>(null);
   const textBufferRef = useRef("");
-  const { addTrip } = useTripContext();
+  const router = useRouter();
+  const { addTrip, updateTrip, removeTrip, fetchTrips, trips } = useTripContext();
+  const { addPlace, removePlace, reorderPlaces, fetchPlaces, places } = usePlaceContext();
 
   const sendMessage = useCallback(async (content: string) => {
     textBufferRef.current = "";
@@ -108,13 +117,83 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           dispatch({ type: "UPDATE_LAST_MESSAGE", payload: textMessageBuffer });
         },
         onToolCallEndEvent: async ({ toolCallName, toolCallArgs }) => {
-          if (toolCallName === "add_trip") {
-            await addTrip(toolCallArgs.name, toolCallArgs.description);
+          switch (toolCallName) {
+            // Trip tools
+            case "add_trip": {
+              const trip = await addTrip(toolCallArgs.name, toolCallArgs.description);
+              if (trip) {
+                router.push(`/trips/${trip.id}`);
+              }
+              break;
+            }
+            case "edit_trip":
+              await updateTrip(toolCallArgs.tripId, {
+                name: toolCallArgs.name,
+                description: toolCallArgs.description,
+              });
+              break;
+            case "delete_trip":
+              await removeTrip(toolCallArgs.tripId);
+              break;
+            case "get_trips":
+              await fetchTrips();
+              break;
+
+            // Place tools (use currentTripId)
+            case "add_place":
+              if (currentTripId) {
+                await addPlace(currentTripId, {
+                  name: toolCallArgs.name,
+                  address: toolCallArgs.address,
+                  latitude: toolCallArgs.latitude,
+                  longitude: toolCallArgs.longitude,
+                });
+              }
+              break;
+            case "delete_place":
+              if (currentTripId) {
+                await removePlace(currentTripId, toolCallArgs.placeId);
+              }
+              break;
+            case "reorder_places":
+              if (currentTripId) {
+                await reorderPlaces(currentTripId, toolCallArgs.placeIds);
+              }
+              break;
+            case "get_places":
+              if (currentTripId) {
+                await fetchPlaces(currentTripId);
+              }
+              break;
+            case "search_places":
+              // Search is handled server-side, results returned via text
+              break;
           }
         },
       };
 
-      await agent.runAgent({}, subscriber);
+      const agContext: { description: string; value: string }[] = [];
+      const currentTrip = trips.find(t => t.id === currentTripId);
+
+      if (currentTrip) {
+        // On trip page: current trip + places only
+        agContext.push({
+          description: "currentTrip",
+          value: JSON.stringify({ id: currentTrip.id, name: currentTrip.name })
+        });
+        agContext.push({
+          description: "tripPlaces",
+          value: JSON.stringify(places.map(p => ({ id: p.id, name: p.name })))
+        });
+      } else {
+        // On homepage: all trips list
+        agContext.push({
+          description: "allTrips",
+          value: JSON.stringify(trips.map(t => ({ id: t.id, name: t.name })))
+        });
+      }
+
+      await agent.runAgent({ context: agContext }, subscriber);
     } catch (error) {
       console.error("Chat error:", error);
       dispatch({
@@ -124,7 +203,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     } finally {
       dispatch({ type: "SET_LOADING", payload: false });
     }
-  }, [state.messages]);
+  }, [state.messages, currentTripId, router, addTrip, updateTrip, removeTrip, fetchTrips, addPlace, removePlace, reorderPlaces, fetchPlaces]);
 
   const toggleOpen = useCallback(() => {
     dispatch({ type: "TOGGLE_OPEN" });
@@ -144,6 +223,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         messages: state.messages,
         isLoading: state.isLoading,
         isOpen: state.isOpen,
+        currentTripId,
+        setCurrentTripId,
         sendMessage,
         toggleOpen,
         setOpen,
