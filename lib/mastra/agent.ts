@@ -243,3 +243,5 @@ export function createChatAgent(ctx: AgentContext = {}) {
 
 // Default agent for backwards compatibility
 export const chatAgent = createChatAgent();
+
+
