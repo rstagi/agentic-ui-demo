@@ -1,11 +1,18 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { createTrip, getTripById, getAllTrips, updateTrip, deleteTrip } from "@/lib/db/trips";
-import { getPlacesByTripId, createPlace, deletePlace, updatePlace } from "@/lib/db/places";
+import {
+  createTrip,
+  getTrip,
+  listTrips,
+  updateTrip,
+  deleteTrip,
+  getPlaces,
+  addPlace,
+  deletePlace,
+  reorderPlaces,
+  searchPlaces,
+} from "@/lib/use-cases";
 import { createMapUIResource, createSearchResultsUIResource } from "./ui-resources";
-import { Client } from "@googlemaps/google-maps-services-js";
-
-const googleMapsClient = new Client({});
 
 export const server = new McpServer({
   name: "wanderlust-mcp",
@@ -44,7 +51,7 @@ server.registerTool(
     },
   },
   async ({ tripId }) => {
-    const trip = getTripById(tripId);
+    const trip = getTrip(tripId);
     if (!trip) {
       return {
         content: [{ type: "text", text: `Trip ${tripId} not found` }],
@@ -52,7 +59,7 @@ server.registerTool(
       };
     }
 
-    const places = getPlacesByTripId(trip.id);
+    const places = getPlaces(trip.id);
     const mapResource = createMapUIResource(trip, places);
 
     return {
@@ -71,7 +78,7 @@ server.registerTool(
     inputSchema: {},
   },
   async () => {
-    const trips = getAllTrips();
+    const trips = listTrips();
 
     if (trips.length === 0) {
       return { content: [{ type: "text", text: "No trips found" }] };
@@ -152,25 +159,24 @@ server.registerTool(
     },
   },
   async ({ tripId, name, address, latitude, longitude }) => {
-    const trip = getTripById(tripId);
-    if (!trip) {
+    try {
+      const place = addPlace(tripId, {
+        name,
+        address: address ?? null,
+        latitude,
+        longitude,
+      });
+
+      const trip = getTrip(tripId);
+      return {
+        content: [{ type: "text", text: `Added "${place.name}" to trip "${trip?.name}" (Place ID: ${place.id})` }],
+      };
+    } catch {
       return {
         content: [{ type: "text", text: `Trip ${tripId} not found` }],
         isError: true,
       };
     }
-
-    const place = createPlace({
-      trip_id: tripId,
-      name,
-      address: address ?? null,
-      latitude,
-      longitude,
-    });
-
-    return {
-      content: [{ type: "text", text: `Added "${place.name}" to trip "${trip.name}" (Place ID: ${place.id})` }],
-    };
   }
 );
 
@@ -208,33 +214,19 @@ server.registerTool(
     },
   },
   async ({ tripId, placeIds }) => {
-    const trip = getTripById(tripId);
-    if (!trip) {
+    try {
+      reorderPlaces(tripId, placeIds);
+      const trip = getTrip(tripId);
       return {
-        content: [{ type: "text", text: `Trip ${tripId} not found` }],
+        content: [{ type: "text", text: `Reordered ${placeIds.length} places in trip "${trip?.name}"` }],
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return {
+        content: [{ type: "text", text: message }],
         isError: true,
       };
     }
-
-    const places = getPlacesByTripId(tripId);
-    const placeIdSet = new Set(places.map(p => p.id));
-
-    for (const id of placeIds) {
-      if (!placeIdSet.has(id)) {
-        return {
-          content: [{ type: "text", text: `Place ${id} not in trip ${tripId}` }],
-          isError: true,
-        };
-      }
-    }
-
-    placeIds.forEach((placeId, index) => {
-      updatePlace(placeId, { visit_order: index });
-    });
-
-    return {
-      content: [{ type: "text", text: `Reordered ${placeIds.length} places in trip "${trip.name}"` }],
-    };
   }
 );
 
@@ -247,29 +239,8 @@ server.registerTool(
     },
   },
   async ({ query }) => {
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-    if (!apiKey) {
-      return {
-        content: [{ type: "text", text: "Google Maps API key not configured" }],
-        isError: true,
-      };
-    }
-
     try {
-      const response = await googleMapsClient.textSearch({
-        params: {
-          query: query.trim(),
-          key: apiKey,
-        },
-      });
-
-      const results = (response.data.results || []).slice(0, 8).map((place) => ({
-        place_id: place.place_id || "",
-        name: place.name || "",
-        address: place.formatted_address || "",
-        latitude: place.geometry?.location?.lat || 0,
-        longitude: place.geometry?.location?.lng || 0,
-      }));
+      const results = await searchPlaces(query);
 
       if (results.length === 0) {
         return { content: [{ type: "text", text: `No results found for "${query}"` }] };
@@ -287,9 +258,10 @@ server.registerTool(
           uiResource,
         ],
       };
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to search places";
       return {
-        content: [{ type: "text", text: "Failed to search places" }],
+        content: [{ type: "text", text: message }],
         isError: true,
       };
     }
@@ -305,7 +277,7 @@ server.registerTool(
     },
   },
   async ({ tripId }) => {
-    const trip = getTripById(tripId);
+    const trip = getTrip(tripId);
     if (!trip) {
       return {
         content: [{ type: "text", text: `Trip ${tripId} not found` }],
@@ -313,7 +285,7 @@ server.registerTool(
       };
     }
 
-    const places = getPlacesByTripId(tripId);
+    const places = getPlaces(tripId);
 
     if (places.length === 0) {
       return { content: [{ type: "text", text: `No places in trip "${trip.name}"` }] };

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPlaceById, updatePlace, deletePlace } from "@/lib/db/places";
+import { getPlace, updatePlace, deletePlace } from "@/lib/use-cases";
 
 type Params = { params: Promise<{ tripId: string; placeId: string }> };
 
@@ -10,7 +10,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Invalid place ID" }, { status: 400 });
   }
 
-  const place = getPlaceById(id);
+  const place = getPlace(id);
   if (!place) {
     return NextResponse.json({ error: "Place not found" }, { status: 404 });
   }

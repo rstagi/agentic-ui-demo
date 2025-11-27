@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAllTrips, createTrip } from "@/lib/db/trips";
+import { listTrips, createTrip } from "@/lib/use-cases";
 
 export async function GET() {
-  const trips = getAllTrips();
+  const trips = listTrips();
   return NextResponse.json(trips);
 }
 
