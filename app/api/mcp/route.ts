@@ -4,8 +4,22 @@ import {
   handleAddTrip,
   handleGetTrip,
   handleGetTrips,
+  handleEditTrip,
+  handleDeleteTrip,
+  handleAddPlace,
+  handleDeletePlace,
+  handleReorderPlaces,
+  handleSearchPlaces,
+  handleGetPlaces,
   addTripSchema,
   getTripSchema,
+  editTripSchema,
+  deleteTripSchema,
+  addPlaceSchema,
+  deletePlaceSchema,
+  reorderPlacesSchema,
+  searchPlacesSchema,
+  getPlacesSchema,
 } from "@/lib/mcp/tools";
 
 // Simple JSON-RPC handler for MCP
@@ -70,6 +84,27 @@ export async function POST(request: NextRequest) {
             break;
           case "get_trips":
             result = await handleGetTrips();
+            break;
+          case "edit_trip":
+            result = await handleEditTrip(editTripSchema.parse(args));
+            break;
+          case "delete_trip":
+            result = await handleDeleteTrip(deleteTripSchema.parse(args));
+            break;
+          case "add_place":
+            result = await handleAddPlace(addPlaceSchema.parse(args));
+            break;
+          case "delete_place":
+            result = await handleDeletePlace(deletePlaceSchema.parse(args));
+            break;
+          case "reorder_places":
+            result = await handleReorderPlaces(reorderPlacesSchema.parse(args));
+            break;
+          case "search_places":
+            result = await handleSearchPlaces(searchPlacesSchema.parse(args));
+            break;
+          case "get_places":
+            result = await handleGetPlaces(getPlacesSchema.parse(args));
             break;
           default:
             return Response.json(

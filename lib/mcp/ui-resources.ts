@@ -81,3 +81,91 @@ export function createMapUIResource(trip: Trip, places: Place[]) {
     encoding: "text",
   });
 }
+
+interface SearchResult {
+  place_id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+}
+
+function generateSearchResultsHtml(query: string, results: SearchResult[]): string {
+  const resultItems = results.map((r, i) => `
+    <div class="result-item">
+      <div class="result-number">${i + 1}</div>
+      <div class="result-info">
+        <div class="result-name">${r.name}</div>
+        <div class="result-address">${r.address}</div>
+        <div class="result-coords">${r.latitude.toFixed(4)}, ${r.longitude.toFixed(4)}</div>
+      </div>
+    </div>
+  `).join("");
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Search: ${query}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #faf6f1; }
+    .header { padding: 16px; background: linear-gradient(135deg, #4a7c59 0%, #3d6b4a 100%); color: white; }
+    .header h1 { font-size: 16px; margin: 0; font-weight: 500; }
+    .header p { font-size: 13px; opacity: 0.9; margin-top: 4px; }
+    .results { padding: 8px; }
+    .result-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      background: white;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .result-number {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #4a7c59 0%, #3d6b4a 100%);
+      border-radius: 50%;
+      color: white;
+      font-weight: bold;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .result-info { flex: 1; min-width: 0; }
+    .result-name { font-weight: 600; color: #3d3d3d; font-size: 14px; }
+    .result-address { color: #666; font-size: 12px; margin-top: 2px; }
+    .result-coords { color: #999; font-size: 11px; margin-top: 4px; font-family: monospace; }
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Search: "${query}"</h1>
+    <p>${results.length} result${results.length !== 1 ? "s" : ""} found</p>
+  </div>
+  ${results.length > 0
+    ? `<div class="results">${resultItems}</div>`
+    : '<div class="empty-state">No results found</div>'}
+</body>
+</html>`;
+}
+
+export function createSearchResultsUIResource(query: string, results: SearchResult[]) {
+  const html = generateSearchResultsHtml(query, results);
+
+  return createUIResource({
+    uri: `ui://wanderlust/search-results/${encodeURIComponent(query)}`,
+    content: { type: "rawHtml", htmlString: html },
+    encoding: "text",
+  });
+}
