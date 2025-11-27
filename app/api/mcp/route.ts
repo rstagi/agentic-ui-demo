@@ -1,127 +1,57 @@
 import { NextRequest } from "next/server";
-import {
-  tools,
-  handleAddTrip,
-  handleGetTrip,
-  handleGetTrips,
-  handleEditTrip,
-  handleDeleteTrip,
-  handleAddPlace,
-  handleDeletePlace,
-  handleReorderPlaces,
-  handleSearchPlaces,
-  handleGetPlaces,
-  addTripSchema,
-  getTripSchema,
-  editTripSchema,
-  deleteTripSchema,
-  addPlaceSchema,
-  deletePlaceSchema,
-  reorderPlacesSchema,
-  searchPlacesSchema,
-  getPlacesSchema,
-} from "@/lib/mcp/tools";
+import { server } from "@/lib/mcp/server";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 
-// Simple JSON-RPC handler for MCP
-// Handles: initialize, tools/list, tools/call
+/**
+ * Stateless transport for Next.js App Router
+ * Handles single request-response cycles
+ */
+class NextJsTransport implements Transport {
+  private responsePromise: Promise<JSONRPCMessage>;
+  private resolveResponse!: (message: JSONRPCMessage) => void;
 
-interface JsonRpcRequest {
-  jsonrpc: "2.0";
-  id: string | number;
-  method: string;
-  params?: Record<string, unknown>;
-}
+  constructor() {
+    this.responsePromise = new Promise((resolve) => {
+      this.resolveResponse = resolve;
+    });
+  }
 
-function jsonRpcResponse(id: string | number, result: unknown) {
-  return { jsonrpc: "2.0", id, result };
-}
+  async start(): Promise<void> {}
 
-function jsonRpcError(id: string | number, code: number, message: string) {
-  return { jsonrpc: "2.0", id, error: { code, message } };
+  async send(message: JSONRPCMessage): Promise<void> {
+    this.resolveResponse(message);
+  }
+
+  async close(): Promise<void> {}
+
+  async handleMessage(message: JSONRPCMessage): Promise<JSONRPCMessage> {
+    this.onmessage?.(message);
+    return this.responsePromise;
+  }
+
+  onmessage?: (message: JSONRPCMessage) => void;
+  onclose?: () => void;
+  onerror?: (error: Error) => void;
 }
 
 export async function POST(request: NextRequest) {
-  const body = (await request.json()) as JsonRpcRequest;
-  const { id, method, params } = body;
+  const body = await request.json();
 
-  try {
-    switch (method) {
-      case "initialize": {
-        return Response.json(
-          jsonRpcResponse(id, {
-            protocolVersion: "2024-11-05",
-            capabilities: {
-              tools: {},
-            },
-            serverInfo: {
-              name: "wanderlust-mcp",
-              version: "1.0.0",
-            },
-          })
-        );
-      }
-
-      case "notifications/initialized": {
-        // Client acknowledgment, no response needed for notifications
-        return new Response(null, { status: 204 });
-      }
-
-      case "tools/list": {
-        return Response.json(jsonRpcResponse(id, { tools }));
-      }
-
-      case "tools/call": {
-        const toolName = params?.name as string;
-        const args = params?.arguments as Record<string, unknown>;
-
-        let result;
-        switch (toolName) {
-          case "add_trip":
-            result = await handleAddTrip(addTripSchema.parse(args));
-            break;
-          case "get_trip":
-            result = await handleGetTrip(getTripSchema.parse(args));
-            break;
-          case "get_trips":
-            result = await handleGetTrips();
-            break;
-          case "edit_trip":
-            result = await handleEditTrip(editTripSchema.parse(args));
-            break;
-          case "delete_trip":
-            result = await handleDeleteTrip(deleteTripSchema.parse(args));
-            break;
-          case "add_place":
-            result = await handleAddPlace(addPlaceSchema.parse(args));
-            break;
-          case "delete_place":
-            result = await handleDeletePlace(deletePlaceSchema.parse(args));
-            break;
-          case "reorder_places":
-            result = await handleReorderPlaces(reorderPlacesSchema.parse(args));
-            break;
-          case "search_places":
-            result = await handleSearchPlaces(searchPlacesSchema.parse(args));
-            break;
-          case "get_places":
-            result = await handleGetPlaces(getPlacesSchema.parse(args));
-            break;
-          default:
-            return Response.json(
-              jsonRpcError(id, -32601, `Unknown tool: ${toolName}`)
-            );
-        }
-
-        return Response.json(jsonRpcResponse(id, result));
-      }
-
-      default:
-        return Response.json(jsonRpcError(id, -32601, `Unknown method: ${method}`));
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Internal error";
-    return Response.json(jsonRpcError(id, -32603, message));
+  // Handle notifications (no response expected)
+  if (!("id" in body)) {
+    const transport = new NextJsTransport();
+    await server.connect(transport);
+    transport.onmessage?.(body);
+    return new Response(null, { status: 204 });
   }
+
+  const transport = new NextJsTransport();
+  await server.connect(transport);
+
+  const response = await transport.handleMessage(body);
+
+  return Response.json(response);
 }
 
 // CORS preflight

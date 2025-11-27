@@ -25,4 +25,4 @@ export interface PlaceSearchResult {
 }
 
 export type TripInput = Omit<Trip, "id" | "created_at">;
-export type PlaceInput = Omit<Place, "id" | "created_at">;
+export type PlaceInput = Omit<Place, "id" | "created_at" | "visit_order"> & { visit_order?: number };
