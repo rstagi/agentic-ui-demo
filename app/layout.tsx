@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { TripProvider } from "@/contexts/TripContext";
-import { ChatProvider } from "@/contexts/ChatContext";
 import ChatSidebar from "@/components/ChatSidebar";
+import { ChatProvider } from "@/contexts/ChatContext";
 
 export const metadata: Metadata = {
   title: "Wanderlust - Trip Planner",
@@ -17,14 +17,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased h-screen flex flex-col overflow-hidden">
-        <ChatProvider>
-          <div className="flex flex-1 min-h-0">
-            <div className="flex-1 min-w-0 flex flex-col overflow-auto">
-              <TripProvider>{children}</TripProvider>
+        <TripProvider>
+          <ChatProvider>
+            <div className="flex flex-1 min-h-0">
+              <div className="flex-1 min-w-0 flex flex-col overflow-auto">
+                {children}
+              </div>
+              <ChatSidebar />
             </div>
-            <ChatSidebar />
-          </div>
-        </ChatProvider>
+          </ChatProvider>
+        </TripProvider>
       </body>
     </html>
   );

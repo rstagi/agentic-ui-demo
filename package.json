@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ag-ui/client": "^0.0.41",
+    "@ag-ui/mastra": "^0.2.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@googlemaps/google-maps-services-js": "^3.4.2",
