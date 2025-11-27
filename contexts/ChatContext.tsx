@@ -1,12 +1,15 @@
 "use client";
 
+import { AgentSubscriber, HttpAgent } from "@ag-ui/client";
 import {
   createContext,
   useContext,
   useReducer,
   useCallback,
   ReactNode,
+  useRef,
 } from "react";
+import { useTripContext } from "./TripContext";
 
 export interface Message {
   role: "user" | "assistant";
@@ -73,8 +76,12 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(chatReducer, initialState);
+  const textBufferRef = useRef("");
+  const { addTrip } = useTripContext();
 
   const sendMessage = useCallback(async (content: string) => {
+    textBufferRef.current = "";
+
     const userMessage: Message = { role: "user", content };
     dispatch({ type: "ADD_MESSAGE", payload: userMessage });
     dispatch({ type: "SET_LOADING", payload: true });
@@ -83,31 +90,31 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "ADD_MESSAGE", payload: assistantMessage });
 
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [...state.messages, userMessage].map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-        }),
+      const agent = new HttpAgent({
+        url: "/api/ag-ui",
       });
 
-      if (!response.ok) throw new Error("Chat request failed");
-      if (!response.body) throw new Error("No response body");
+      const aguiMessages = [...state.messages, userMessage].map((m) => ({
+        id: crypto.randomUUID(),
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }));
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let accumulated = "";
+      agent.messages = aguiMessages;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      const subscriber: AgentSubscriber = {
+        onTextMessageContentEvent: ({ textMessageBuffer }) => {
+          textBufferRef.current = textMessageBuffer;
+          dispatch({ type: "UPDATE_LAST_MESSAGE", payload: textMessageBuffer });
+        },
+        onToolCallEndEvent: async ({ toolCallName, toolCallArgs }) => {
+          if (toolCallName === "add_trip") {
+            await addTrip(toolCallArgs.name, toolCallArgs.description);
+          }
+        },
+      };
 
-        accumulated += decoder.decode(value, { stream: true });
-        dispatch({ type: "UPDATE_LAST_MESSAGE", payload: accumulated });
-      }
+      await agent.runAgent({}, subscriber);
     } catch (error) {
       console.error("Chat error:", error);
       dispatch({
